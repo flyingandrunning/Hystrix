@@ -64,18 +64,20 @@ import java.util.concurrent.atomic.AtomicReference;
     protected final HystrixThreadPoolKey threadPoolKey;
     protected final HystrixCommandProperties properties;
 
+    //时间状态机模式
     protected enum TimedOutStatus {
         NOT_EXECUTED, COMPLETED, TIMED_OUT
     }
-
+    //命令模式状态机模式(处理请求)
     protected enum CommandState {
         NOT_STARTED, OBSERVABLE_CHAIN_CREATED, USER_CODE_EXECUTED, UNSUBSCRIBED, TERMINAL
     }
-
+    //线程状态
     protected enum ThreadState {
         NOT_USING_THREAD, STARTED, UNSUBSCRIBED, TERMINAL
     }
 
+    //命令策略
     protected final HystrixCommandMetrics metrics;
 
     protected final HystrixCommandKey commandKey;
@@ -85,23 +87,25 @@ import java.util.concurrent.atomic.AtomicReference;
      * Plugin implementations
      */
     protected final HystrixEventNotifier eventNotifier;
+    //并发策略
     protected final HystrixConcurrencyStrategy concurrencyStrategy;
     protected final HystrixCommandExecutionHook executionHook;
 
-    /* FALLBACK Semaphore */
+    /* FALLBACK Semaphore  熔断信号量控制器*/
     protected final TryableSemaphore fallbackSemaphoreOverride;
-    /* each circuit has a semaphore to restrict concurrent fallback execution */
+    /* each circuit has a semaphore to restrict concurrent fallback execution 通过ConcurrentHashMap 模式进行各业务熔断隔离 */
     protected static final ConcurrentHashMap<String, TryableSemaphore> fallbackSemaphorePerCircuit = new ConcurrentHashMap<String, TryableSemaphore>();
     /* END FALLBACK Semaphore */
 
-    /* EXECUTION Semaphore */
+    /* EXECUTION Semaphore 执行信号量*/
     protected final TryableSemaphore executionSemaphoreOverride;
-    /* each circuit has a semaphore to restrict concurrent fallback execution */
+    /* each circuit has a semaphore to restrict concurrent fallback execution  同上*/
     protected static final ConcurrentHashMap<String, TryableSemaphore> executionSemaphorePerCircuit = new ConcurrentHashMap<String, TryableSemaphore>();
     /* END EXECUTION Semaphore */
 
     protected final AtomicReference<Reference<TimerListener>> timeoutTimer = new AtomicReference<Reference<TimerListener>>();
 
+    //原子引用模式进行控制状态机
     protected AtomicReference<CommandState> commandState = new AtomicReference<CommandState>(CommandState.NOT_STARTED);
     protected AtomicReference<ThreadState> threadState = new AtomicReference<ThreadState>(ThreadState.NOT_USING_THREAD);
 
@@ -128,13 +132,14 @@ import java.util.concurrent.atomic.AtomicReference;
     /**
      * Instance of RequestCache logic
      */
+    //请求缓存
     protected final HystrixRequestCache requestCache;
     protected final HystrixRequestLog currentRequestLog;
 
     // this is a micro-optimization but saves about 1-2microseconds (on 2011 MacBook Pro) 
     // on the repetitive string processing that will occur on the same classes over and over again
     private static ConcurrentHashMap<Class<?>, String> defaultNameCache = new ConcurrentHashMap<Class<?>, String>();
-
+    //命令熔断隔离器
     protected static ConcurrentHashMap<HystrixCommandKey, Boolean> commandContainsFallback = new ConcurrentHashMap<HystrixCommandKey, Boolean>();
 
     /* package */static String getDefaultNameFromClass(Class<?> cls) {
